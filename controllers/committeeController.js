@@ -128,4 +128,25 @@ const getAllMembers = async (req, res) => {
   }
 };
 
-module.exports = { registerMember, loginMember, getAllMembers };
+// GET OWN PROFILE
+const getMemberProfile = async (req, res) => {
+  try {
+    const [rows] = await db.query(
+      'SELECT id, fullname, email, phone_no, village, city, profile_image_url, profile_image_id, created_at FROM committee_members WHERE id = ?',
+      [req.user.id]
+    );
+
+    if (rows.length === 0) {
+      return res.status(404).json({ message: 'Member not found' });
+    }
+
+    res.status(200).json({
+      message: 'Profile fetched successfully',
+      member: rows[0],
+    });
+  } catch (err) {
+    res.status(500).json({ message: 'Server error', error: err.message });
+  }
+};
+
+module.exports = { registerMember, loginMember, getAllMembers, getMemberProfile }; 
