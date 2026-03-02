@@ -1,7 +1,6 @@
 const db = require('../config/db');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
-const { randomUUID: uuidv4 } = require('crypto');
 const imagekit = require('../services/imagekitService');
 require('dotenv').config();
 
@@ -13,8 +12,9 @@ const register = async (req, res) => {
     if (!fullname || !password || (!email && !phone_no)) {
       return res.status(400).json({ message: 'fullname, password, and email or phone_no are required' });
     }
-
-    // Check if user exists
+    if (!req.file) {
+      return res.status(400).json({ message: 'Profile image is required' });
+    }
     const [existing] = await db.query(
       'SELECT id FROM users WHERE email = ? OR phone_no = ?',
       [email || null, phone_no || null]
@@ -24,17 +24,14 @@ const register = async (req, res) => {
     }
 
     const hashedPassword = await bcrypt.hash(password, 10);
-    const id = uuidv4();
 
     let profile_image_url = null;
     let profile_image_id = null;
 
-    // Upload to ImageKit if image provided
     if (req.file) {
-      const fileName = `${phone_no || email}_${Date.now()}`;
       const uploadResponse = await imagekit.upload({
         file: req.file.buffer.toString('base64'),
-        fileName: fileName,
+        fileName: `${phone_no || email}_${Date.now()}`,
         folder: '/babariya-parivar/profile-images',
       });
       profile_image_url = uploadResponse.url;
@@ -42,13 +39,12 @@ const register = async (req, res) => {
     }
 
     await db.query(
-      'INSERT INTO users (id, fullname, email, phone_no, password, village, city, profile_image_url, profile_image_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
-      [id, fullname, email || null, phone_no || null, hashedPassword, village || null, city || null, profile_image_url, profile_image_id]
+      'INSERT INTO users (fullname, email, phone_no, password, village, city, profile_image_url, profile_image_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+      [fullname, email || null, phone_no || null, hashedPassword, village || null, city || null, profile_image_url, profile_image_id]
     );
 
     res.status(201).json({ message: 'Registration successful' });
   } catch (err) {
-    console.error(err);
     res.status(500).json({ message: 'Server error', error: err.message });
   }
 };
@@ -92,7 +88,6 @@ const login = async (req, res) => {
         fullname: user.fullname,
         email: user.email,
         phone_no: user.phone_no,
-        password: user.password,
         village: user.village,
         city: user.city,
         profile_image_url: user.profile_image_url,
@@ -101,9 +96,24 @@ const login = async (req, res) => {
       },
     });
   } catch (err) {
-    console.error(err);
     res.status(500).json({ message: 'Server error', error: err.message });
   }
 };
 
-module.exports = { register, login };
+// GET ALL USERS
+const getAllUsers = async (req, res) => {
+  try {
+    const [rows] = await db.query(
+      'SELECT fullname, city, profile_image_url FROM users ORDER BY created_at DESC'
+    );
+    res.status(200).json({
+      message: 'Users fetched successfully',
+      total: rows.length,
+      users: rows,
+    });
+  } catch (err) {
+    res.status(500).json({ message: 'Server error', error: err.message });
+  }
+};
+
+module.exports = { register, login, getAllUsers };
