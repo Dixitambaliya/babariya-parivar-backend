@@ -13,6 +13,7 @@ app.use(express.urlencoded({ extended: true }));
 app.use('/api/auth', require('./routes/authRoutes'));
 app.use('/api/gallery', require('./routes/galleryRoutes'));
 app.use('/api/committee', require('./routes/committeeRoutes')); 
+app.use('/api/admin', require('./routes/adminRoutes'));
 
 app.get('/', (req, res) => res.send('Babariya Parivar Backend Running ✅'));
 
