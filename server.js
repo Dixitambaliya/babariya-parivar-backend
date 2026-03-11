@@ -15,6 +15,10 @@ app.use('/api/gallery', require('./routes/galleryRoutes'));
 app.use('/api/committee', require('./routes/committeeRoutes')); 
 app.use('/api/admin', require('./routes/adminRoutes'));
 
+app.use("/api/qrs", require("./routes/qrs"));
+app.use("/api/webhooks", require("./routes/webhooks"));
+
+
 app.get('/', (req, res) => res.send('Babariya Parivar Backend Running ✅'));
 
 app.listen(PORT, () => {
