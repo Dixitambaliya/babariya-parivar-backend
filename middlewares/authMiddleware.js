@@ -17,7 +17,7 @@ const authenticate = (req, res, next) => {
 };
 
 const authorizeAdmin = (req, res, next) => {
-  if (!req.user || (req.user.role !== 'committee' && req.user.role !== 'admin')) {
+  if (!req.user || req.user.role !== 'admin') {
     return res.status(403).json({ message: 'Admin access required' });
   }
 

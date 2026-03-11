@@ -2,8 +2,6 @@ const db = require('../config/db');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const imagekit = require('../services/imagekitService');
-const crypto = require('crypto');
-const sendEmail = require('../config/mail');
 require('dotenv').config();
 
 // REGISTER
@@ -13,9 +11,6 @@ const register = async (req, res) => {
 
     if (!fullname || !password || (!email && !phone_no)) {
       return res.status(400).json({ message: 'fullname, password, and email or phone_no are required' });
-    }
-    if (!req.file) {
-      return res.status(400).json({ message: 'Profile image is required' });
     }
     const [existing] = await db.query(
       'SELECT id FROM users WHERE email = ? OR phone_no = ?',
@@ -106,7 +101,7 @@ const login = async (req, res) => {
 const getAllUsers = async (req, res) => {
   try {
     const [rows] = await db.query(
-      'SELECT fullname, city, profile_image_url FROM users ORDER BY created_at DESC'
+      'SELECT id, fullname, email, phone_no, village, city, profile_image_url FROM users ORDER BY created_at DESC'
     );
     res.status(200).json({
       message: 'Users fetched successfully',
@@ -164,75 +159,4 @@ const changePassword = async (req, res) => {
   }
 };
 
-// FORGOT PASSWORD - send OTP to email
-const forgotPassword = async (req, res) => {
-  try {
-    const { email } = req.body;
-
-    if (!email) return res.status(400).json({ message: 'Email is required' });
-
-    const [rows] = await db.query('SELECT * FROM users WHERE email = ?', [email]);
-    if (rows.length === 0) return res.status(404).json({ message: 'User not found with this email' });
-
-    const otp = Math.floor(100000 + Math.random() * 900000).toString();
-    const otpExpires = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
-
-    await db.query('UPDATE users SET otp = ?, otp_expires = ? WHERE email = ?', [otp, otpExpires, email]);
-
-    await sendEmail(
-      email,
-      'Password Reset OTP - Babariya Parivar',
-      `<h2>Your OTP is: <b>${otp}</b></h2><p>This OTP is valid for 10 minutes.</p>`
-    );
-
-    res.status(200).json({ message: `OTP has been sent on ${email}` });
-  } catch (err) {
-    res.status(500).json({ message: 'Server error', error: err.message });
-  }
-};
-
-// VERIFY OTP - returns reset token
-const verifyOtp = async (req, res) => {
-  try {
-    const { email, otp } = req.body;
-
-    if (!email || !otp) return res.status(400).json({ message: 'Email and OTP are required' });
-
-    const [rows] = await db.query('SELECT * FROM users WHERE email = ?', [email]);
-    if (rows.length === 0) return res.status(404).json({ message: 'User not found' });
-
-    const user = rows[0];
-
-    if (user.otp !== otp) return res.status(400).json({ message: 'Invalid OTP' });
-    if (new Date() > new Date(user.otp_expires)) return res.status(400).json({ message: 'OTP has expired' });
-
-    const resetToken = crypto.randomBytes(32).toString('hex');
-
-    await db.query('UPDATE users SET otp = NULL, otp_expires = NULL, reset_token = ? WHERE email = ?', [resetToken, email]);
-
-    res.status(200).json({ message: 'OTP verified', resetToken });
-  } catch (err) {
-    res.status(500).json({ message: 'Server error', error: err.message });
-  }
-};
-
-// RESET PASSWORD - using reset token
-const resetPassword = async (req, res) => {
-  try {
-    const { resetToken, newPassword } = req.body;
-
-    if (!resetToken || !newPassword) return res.status(400).json({ message: 'resetToken and newPassword are required' });
-
-    const [rows] = await db.query('SELECT * FROM users WHERE reset_token = ?', [resetToken]);
-    if (rows.length === 0) return res.status(400).json({ message: 'Invalid or expired reset token' });
-
-    const hashed = await bcrypt.hash(newPassword, 10);
-    await db.query('UPDATE users SET password = ?, reset_token = NULL WHERE reset_token = ?', [hashed, resetToken]);
-
-    res.status(200).json({ message: 'Password reset successful' });
-  } catch (err) {
-    res.status(500).json({ message: 'Server error', error: err.message });
-  }
-};
-
-module.exports = { register, login, getAllUsers, getProfile, changePassword, forgotPassword, verifyOtp, resetPassword };
+module.exports = { register, login, getAllUsers, getProfile, changePassword };

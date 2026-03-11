@@ -12,10 +12,7 @@ const registerMember = async (req, res) => {
     if (!fullname || !password || (!email && !phone_no)) {
       return res.status(400).json({ message: 'fullname, password, and email or phone_no are required' });
     }
-
-    if (!req.file) {
-        return res.status(400).json({ message: 'Profile image is required' });
-    }   
+ 
     const [existing] = await db.query(
       'SELECT id FROM committee_members WHERE email = ? OR phone_no = ?',
       [email || null, phone_no || null]
@@ -105,11 +102,7 @@ const loginMember = async (req, res) => {
 const getAllMembers = async (req, res) => {
   try {
     const [members] = await db.query(
-      'SELECT id, fullname, email, phone_no, village, city, profile_image_url, profile_image_id, created_at FROM committee_members ORDER BY created_at DESC'
-    );
-
-    const [users] = await db.query(
-      'SELECT id, fullname, email, phone_no, village, city, profile_image_url, profile_image_id, created_at FROM users ORDER BY created_at DESC'
+      'SELECT id, fullname, email, phone_no, village, city, profile_image_url, profile_image_id,role created_at FROM committee_members ORDER BY created_at DESC'
     );
 
     res.status(200).json({
@@ -117,11 +110,7 @@ const getAllMembers = async (req, res) => {
       committee_members: {
         total: members.length,
         data: members,
-      },
-      users: {
-        total: users.length,
-        data: users,
-      },
+      }
     });
   } catch (err) {
     res.status(500).json({ message: 'Server error', error: err.message });
